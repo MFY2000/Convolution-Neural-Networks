@@ -24,6 +24,12 @@ class handDetector():
         self.mpDraw = mp.solutions.drawing_utils
         self.tipIds = [4, 8, 12, 16, 20]
 
+    def isHand(self):
+        found = False
+        if self.results.multi_hand_landmarks:
+            found = True;
+        return found
+
     def findHands(self, img, draw=True):
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.results = self.hands.process(imgRGB)
@@ -34,7 +40,6 @@ class handDetector():
                 if draw:
                     self.mpDraw.draw_landmarks(img, handLms,
                                                self.mpHands.HAND_CONNECTIONS)
-
         return img
 
     def findPosition(self, img, handNo=0, draw=True):
@@ -115,51 +120,56 @@ while True:
     # 1. Find hand Landmarks
     success, img = cap.read()
     img = detector.findHands(img)
-    lmList, bbox = detector.findPosition(img)
-    # 2. Get the tip of the index and middle fingers
-    if len(lmList) != 0:
-        x1, y1 = lmList[8][1:]
-        x2, y2 = lmList[12][1:]
-        # print(x1, y1, x2, y2)
+    if detector.isHand():
 
-    # 3. Check which fingers are up
-    fingers = detector.fingersUp()
-    # print(fingers)
-    cv2.rectangle(img, (frameR, frameR), (wCam - frameR, hCam - frameR),
-                  (255, 0, 255), 2)
-    # 4. Only Index Finger : Moving Mode
-    if fingers[1] == 1 and fingers[2] == 0:
-        # 5. Convert Coordinates
-        x3 = np.interp(x1, (frameR, wCam - frameR), (0, wScr))
-        y3 = np.interp(y1, (frameR, hCam - frameR), (0, hScr))
-        # 6. Smoothen Values
-        clocX = plocX + (x3 - plocX) / smoothening
-        clocY = plocY + (y3 - plocY) / smoothening
+        lmList, bbox = detector.findPosition(img)
+        # 2. Get the tip of the index and middle fingers
+        if len(lmList) != 0:
+            x1, y1 = lmList[8][1:]
+            x2, y2 = lmList[12][1:]
+            # print(x1, y1, x2, y2)
 
-        # 7. Move Mouse
-        autopy.mouse.move(wScr - clocX, clocY)
-        cv2.circle(img, (x1, y1), 15, (255, 0, 255), cv2.FILLED)
-        plocX, plocY = clocX, clocY
+        # 3. Check which fingers are up
+        fingers = detector.fingersUp()
+        # print(fingers)
+        cv2.rectangle(img, (frameR, frameR), (wCam - frameR, hCam - frameR),
+                      (255, 0, 255), 2)
+        # 4. Only Index Finger : Moving Mode
+        if fingers[1] == 1 and fingers[2] == 0:
+            # 5. Convert Coordinates
+            x3 = np.interp(x1, (frameR, wCam - frameR), (0, wScr))
+            y3 = np.interp(y1, (frameR, hCam - frameR), (0, hScr))
+            # 6. Smoothen Values
+            clocX = plocX + (x3 - plocX) / smoothening
+            clocY = plocY + (y3 - plocY) / smoothening
 
-    # 8. Both Index and middle fingers are up : Clicking Mode
-    if fingers[1] == 1 and fingers[2] == 1:
-        # 9. Find distance between fingers
-        length, img, lineInfo = detector.findDistance(8, 12, img)
-        print(length)
-        # 10. Click mouse if distance short
-        if length < 40:
-            cv2.circle(img, (lineInfo[4], lineInfo[5]),
-                       15, (0, 255, 0), cv2.FILLED)
-            autopy.mouse.click()
+            # 7. Move Mouse
+            autopy.mouse.move(wScr - clocX, clocY)
+            cv2.circle(img, (x1, y1), 15, (255, 0, 255), cv2.FILLED)
+            plocX, plocY = clocX, clocY
 
-    # 11. Frame Rate
-    cTime = time.time()
-    fps = 1 / (cTime - pTime)
-    pTime = cTime
-    cv2.putText(img, str(int(fps)), (20, 50), cv2.FONT_HERSHEY_PLAIN, 3,
-                (255, 0, 0), 3)
+        # 8. Both Index and middle fingers are up : Clicking Mode
+        if fingers[1] == 1 and fingers[2] == 1:
+            # 9. Find distance between fingers
+            length, img, lineInfo = detector.findDistance(8, 12, img)
+            print(length)
+            # 10. Click mouse if distance short
+            if length < 40:
+                cv2.circle(img, (lineInfo[4], lineInfo[5]),
+                           15, (0, 255, 0), cv2.FILLED)
+                autopy.mouse.click()
+
+        # 11. Frame Rate
+        cTime = time.time()
+        fps = 1 / (cTime - pTime)
+        pTime = cTime
+        cv2.putText(img, str(int(fps)), (20, 50), cv2.FONT_HERSHEY_PLAIN, 3,
+                    (255, 0, 0), 3)
     # 12. Display
+    img2 =  cv2.resize(img, None, fx=2, fy=2)
+    img3 = cv2.flip(img, 0)
     cv2.imshow("Image", img)
     cv2.waitKey(1)
+
 
 
